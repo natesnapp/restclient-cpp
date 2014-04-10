@@ -12,6 +12,7 @@
 #include <curl/curl.h>
 #include <string>
 #include <map>
+#include <vector>
 #include <cstdlib>
 #include "meta.h"
 #include <algorithm>
@@ -28,6 +29,7 @@ class RestClient
     typedef struct
     {
       int code;
+      int retval;
       std::string body;
       headermap headers;
     } response;
@@ -44,8 +46,11 @@ class RestClient
     static void setAuth(const std::string& user,const std::string& password);
     // HTTP GET
     static response get(const std::string& url);
+    static response multi_header_get(const std::string& url, std::vector<std::string>& headers);
     // HTTP POST
     static response post(const std::string& url, const std::string& ctype,
+                         const std::string& data);
+    static response multi_header_post(const std::string& url, std::vector<std::string>& headers,
                          const std::string& data);
     // HTTP PUT
     static response put(const std::string& url, const std::string& ctype,
@@ -60,7 +65,7 @@ class RestClient
 
     // header callback function
     static size_t header_callback(void *ptr, size_t size, size_t nmemb,
-				  void *userdata);
+                                 void *userdata);
     // read callback function
     static size_t read_callback(void *ptr, size_t size, size_t nmemb,
                                 void *userdata);

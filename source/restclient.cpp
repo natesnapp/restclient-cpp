@@ -13,6 +13,7 @@
 #include <string>
 #include <iostream>
 #include <map>
+#include <vector>
 
 /** initialize user agent string */
 const char* RestClient::user_agent = "restclient-cpp/" VERSION;
@@ -64,10 +65,78 @@ RestClient::response RestClient::get(const std::string& url)
     curl_easy_setopt(curl, CURLOPT_HEADERDATA, &ret);
     /** perform the actual query */
     res = curl_easy_perform(curl);
+    ret.retval = 0;
     if (res != 0)
     {
       ret.body = "Failed to query.";
-      ret.code = -1;
+      ret.retval = -1;
+      ret.code = res;
+      return ret;
+    }
+    long http_code = 0;
+    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+    ret.code = static_cast<int>(http_code);
+
+    curl_easy_cleanup(curl);
+  }
+
+  return ret;
+}
+/**
+ * @brief HTTP GET method with multiple headers
+ *
+ * @param url to query
+ *
+ * @return response struct
+ */
+RestClient::response RestClient::multi_header_get(const std::string& url, std::vector<std::string>& headers)
+{
+  /** create return struct */
+  RestClient::response ret;
+
+  // use libcurl
+  CURL *curl;
+  CURLcode res;
+
+  curl = curl_easy_init();
+  if (curl)
+  {
+    /** set basic authentication if present*/
+    if(RestClient::user_pass.length()>0){
+      curl_easy_setopt(curl, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
+      curl_easy_setopt(curl, CURLOPT_USERPWD, RestClient::user_pass.c_str());
+    }
+    /** set user agent */
+    curl_easy_setopt(curl, CURLOPT_USERAGENT, RestClient::user_agent);
+    /** set query URL */
+    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    /** set callback function */
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, RestClient::write_callback);
+    /** set data object to pass to callback function */
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &ret);
+    /** set the header callback function */
+    curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, RestClient::header_callback);
+    /** callback object for headers */
+    curl_easy_setopt(curl, CURLOPT_HEADERDATA, &ret);
+
+    /** set headers */
+    curl_slist* headers_slist = NULL;
+    std::vector<std::string>::iterator iter;
+    //std::map<std::string,std::string>::iterator iter;
+    //std::vector<std::string
+    for(iter = headers.begin(); iter != headers.end(); iter++) {
+      headers_slist = curl_slist_append(headers_slist, iter->c_str());
+    }
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers_slist);
+
+    /** perform the actual query */
+    res = curl_easy_perform(curl);
+    ret.retval = 0;
+    if (res != 0)
+    {
+      ret.body = "Failed to query.";
+      ret.retval = -1;
+      ret.code = res;
       return ret;
     }
     long http_code = 0;
@@ -132,10 +201,94 @@ RestClient::response RestClient::post(const std::string& url,
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, header);
     /** perform the actual query */
     res = curl_easy_perform(curl);
+    ret.retval = 0;
     if (res != 0)
     {
       ret.body = "Failed to query.";
-      ret.code = -1;
+      ret.retval = -1;
+      ret.code = res;
+      return ret;
+    }
+    long http_code = 0;
+    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+    ret.code = static_cast<int>(http_code);
+
+    curl_easy_cleanup(curl);
+  }
+
+  return ret;
+}
+/**
+ * @brief HTTP POST method with multiple supplied headers
+ *
+ * @param url to query
+ * @param ctype content type as string
+ * @param data HTTP POST body
+ *
+ * @return response struct
+ */
+RestClient::response RestClient::multi_header_post(//std::map<std::string,std::string>& headers,
+                                      const std::string& url,
+                                      std::vector<std::string>& headers,
+                                      const std::string& data)
+{
+  /** create return struct */
+  RestClient::response ret;
+  /** build content-type header string */
+  //std::string ctype_header = "Content-Type: " + ctype;
+
+  // use libcurl
+  CURL *curl;
+  CURLcode res;
+
+  curl = curl_easy_init();
+  if (curl)
+  {
+    /** set basic authentication if present*/
+    if(RestClient::user_pass.length()>0){
+      curl_easy_setopt(curl, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
+      curl_easy_setopt(curl, CURLOPT_USERPWD, RestClient::user_pass.c_str());
+    }
+    /** set user agent */
+    curl_easy_setopt(curl, CURLOPT_USERAGENT, RestClient::user_agent);
+    /** set query URL */
+    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    /** Now specify we want to POST data */
+    curl_easy_setopt(curl, CURLOPT_POST, 1L);
+    /** set post fields */
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data.c_str());
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, data.size());
+    /** set callback function */
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, RestClient::write_callback);
+    /** set data object to pass to callback function */
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &ret);
+    /** set the header callback function */
+    curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, RestClient::header_callback);
+    /** callback object for headers */
+    curl_easy_setopt(curl, CURLOPT_HEADERDATA, &ret);
+    /** set headers */
+    curl_slist* headers_slist = NULL;
+    std::vector<std::string>::iterator iter;
+    //std::map<std::string,std::string>::iterator iter;
+    //std::vector<std::string
+    for(iter = headers.begin(); iter != headers.end(); iter++) {
+      headers_slist = curl_slist_append(headers_slist, iter->c_str());
+    }
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers_slist);
+
+    /** set content-type header */
+    //curl_slist* header = NULL;
+    //header = curl_slist_append(header, ctype_header.c_str());
+    //curl_easy_setopt(curl, CURLOPT_HTTPHEADER, header);
+
+    /** perform the actual query */
+    res = curl_easy_perform(curl);
+    ret.retval = 0;
+    if (res != 0)
+    {
+      ret.body = "Failed to query.";
+      ret.retval = -1;
+      ret.code = res;
       return ret;
     }
     long http_code = 0;
@@ -211,10 +364,12 @@ RestClient::response RestClient::put(const std::string& url,
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, header);
     /** perform the actual query */
     res = curl_easy_perform(curl);
+    ret.retval = 0;
     if (res != 0)
     {
       ret.body = "Failed to query.";
-      ret.code = -1;
+      ret.retval = -1;
+      ret.code = res;
       return ret;
     }
     long http_code = 0;
@@ -269,10 +424,12 @@ RestClient::response RestClient::del(const std::string& url)
     curl_easy_setopt(curl, CURLOPT_HEADERDATA, &ret);
     /** perform the actual query */
     res = curl_easy_perform(curl);
+    ret.retval = 0;
     if (res != 0)
     {
       ret.body = "Failed to query.";
-      ret.code = -1;
+      ret.retval = -1;
+      ret.code = res;
       return ret;
     }
     long http_code = 0;
@@ -325,7 +482,7 @@ size_t RestClient::header_callback(void *data, size_t size, size_t nmemb,
     //roll with non seperated headers... 
     trim(header); 
     if ( 0 == header.length() ){ 
-	return (size * nmemb); //blank line;
+      return (size * nmemb); //blank line;
     } 
     r->headers[header] = "present";
   } else {
